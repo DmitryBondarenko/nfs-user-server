@@ -17,6 +17,7 @@
 
 #ifdef HAVE_SYSLOG_H
 #include <syslog.h>
+#include <time.h>
 #else
 #define LOG_FILE	"/var/tmp/%s.log"
 #endif

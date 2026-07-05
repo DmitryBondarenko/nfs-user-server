@@ -125,7 +125,12 @@ mountproc_mnt_1_svc(dirpath *argp, struct svc_req *rqstp)
 	}
 
 #ifdef WANT_LOG_MOUNTS
-	addr = svc_getcaller(rqstp->rq_xprt)->sin_addr;
+struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *)svc_getcaller(rqstp->rq_xprt);
+/* IPv4-mapped IPv6アドレスからIPv4部分を取り出す */
+//struct in_addr addr;
+memcpy(&addr, &addr6->sin6_addr.s6_addr[12], sizeof(addr));
+
+//	addr = svc_getcaller(rqstp->rq_xprt)->sin_addr;
 	Dprintf(L_NOTICE, "NFS mount of %s attempted from %s\n",
 				argbuf, inet_ntoa(addr));
 #endif /* WANT_LOG_MOUNTS */

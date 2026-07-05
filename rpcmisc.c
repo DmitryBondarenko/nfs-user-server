@@ -229,6 +229,14 @@ makesock(int port, int proto, int socksz)
 		s = RPC_ANYSOCK;
 	}
 
+        if (s != RPC_ANYSOCK && proto == IPPROTO_TCP) {
+                if (listen(s, SOMAXCONN) < 0) {
+                        Dprintf(L_ERROR, "listen failed on TCP socket: %s\n",
+                                                strerror(errno));
+                        close(s);
+                        s = RPC_ANYSOCK;
+                }
+        }
 	return (s);
 }
 

@@ -1,0 +1,12 @@
+*.o
+*.log
+showmount
+rpc.mountd
+rpc.nfsd
+config.cache
+config.status
+config.h
+Makefile
+libnfs.a
+site.h
+site.mk
