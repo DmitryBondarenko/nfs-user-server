@@ -15,7 +15,8 @@
 #include "system.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <rpc/pmap_clnt.h> 
+#include <time.h>
+#include <rpc/rpcb_clnt.h> 
 #include <string.h> 
 #include <signal.h>
 #include <sys/ioctl.h> 
@@ -55,7 +56,7 @@ rpc_init(const char *name, int prog, int *verstbl, void (*dispatch)(),
 	struct sockaddr_in saddr;
 	SVCXPRT	*transp;
 	int	sock, i, vers;
-	int	asize;
+	uint	asize;
 
 	/* When started from inetd, initialize only once */
 	if (_rpcpmstart)
@@ -64,7 +65,7 @@ rpc_init(const char *name, int prog, int *verstbl, void (*dispatch)(),
 	asize = sizeof(saddr);
 	sock = 0;
 	if (getsockname(0, (struct sockaddr *) &saddr, &asize) == 0) {
-		int	ssize = sizeof (i);
+		uint	ssize = sizeof (i);
 
 		if (saddr.sin_family != AF_INET)
 			goto not_inetd;
@@ -77,7 +78,7 @@ rpc_init(const char *name, int prog, int *verstbl, void (*dispatch)(),
 	} else {
 not_inetd:
 		for (i = 0; (vers = verstbl[i]) != 0; i++)
-			pmap_unset(prog, vers);
+			rpcb_unset(prog, vers, NULL);
 		sock = RPC_ANYSOCK;
 	}
 
@@ -135,7 +136,7 @@ rpc_exit(int prog, int *verstbl)
 	if (_rpcpmstart)
 		return;
 	for (i = 0; (vers = verstbl[i]) != 0; i++)
-		pmap_unset(prog, vers);
+		rpcb_unset(prog, vers, NULL);
 }
 
 void
@@ -144,7 +145,7 @@ rpc_closedown(void)
 	struct sockaddr_in	sin;
 	static int		size = 0;
 	time_t			now = time(NULL);
-	int			i, len;
+	uint			i, len;
 
 	if (!_rpcpmstart || now < closedown)
 		return;

@@ -15,6 +15,7 @@
 #include "system.h"
 #include "nfsd.h"
 #include "fakefsuid.h"
+#include "rpcmisc.h"
 
 #ifndef svc_getcaller
 #define svc_getcaller(x) ((struct sockaddr_in *) &(x)->xp_rtaddr.buf)
