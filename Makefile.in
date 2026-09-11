@@ -132,6 +132,11 @@ DISTFILES	= $(SRCS) $(HDRS) $(MANPAGES) \
 all: $(rpcprefix)mountd $(rpcprefix)nfsd showmount $(UGIDD_PROG)
 .PHONY: all
 
+# Runtime tests against the built nfsd; they need root (tests/run.sh).
+check: $(rpcprefix)nfsd
+	bash $(srcdir)/tests/run.sh ./$(rpcprefix)nfsd
+.PHONY: check
+
 .PHONY: info dvi
 info: nfs-server.info
 dvi: nfs-server.dvi
@@ -267,10 +272,6 @@ nfs-server.dvi: nfs-server.texi
 
 README: README.mm
 	groff -mgm -Tascii README.mm | col -b > README
-
-.PHONY: check
-check: nfs-server
-	@echo nothing to check
 
 # this causes nothing but grief
 #Makefile: Makefile.in config.h.in config.status
