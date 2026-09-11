@@ -27,6 +27,15 @@
 #			will make sure the file owner hasn't changed.
 #	--log-mounts=yes/no
 #			Enable/disable logging of all mount requests.
+#	--path-prefix=dir
+#			Installation prefix (default /opt/nfs-user-server).
+#	--path-exports=file
+#			Exports file the servers read
+#			(default <prefix>/etc/exports).
+#	--path-devtab=file
+#			Device mapping file used with --devtab=yes
+#			(default <prefix>/state/devtab).
+#	In batch mode CFLAGS is taken from the environment.
 #
 
 if [ -f .version ]; then
@@ -82,6 +91,22 @@ read_yesno() {
 		override=
 	done
 	echo $ans
+}
+
+# read_path prompt default [value given on the command line]
+# Prints the chosen value. Never reads stdin in batch mode.
+read_path() {
+	if [ -n "$3" ]; then
+		echo "$1 [$2] $3" >&2
+		echo "$3"
+	elif $batch; then
+		echo "$1 [$2] (batch mode: using default)" >&2
+		echo "$2"
+	else
+		echo -n "$1 [$2]: " >&2
+		read ans
+		echo "${ans:-$2}"
+	fi
 }
 
 read_ugid() {
@@ -161,12 +186,7 @@ cat << EOF
 EOF
 
 echo 
-echo "The NFS server will need a file in which to store the device number mapping."
-echo -n "Please enter file name [/opt/nfs-user-server]: "
-read PATH_PREFIX
-if [ -z "$PATH_PREFIX" ]; then
-	PATH_PREFIX=/opt/nfs-user-server
-fi
+PATH_PREFIX=`read_path "Installation prefix" /opt/nfs-user-server "$path_prefix"`
 echo
 
 
@@ -175,11 +195,11 @@ if [ -z "$CFLAGS_SAVE" ]; then
 	CFLAGS_SAVE='-I/usr/include/tirpc'
 fi
 echo 
-echo "Revize the CFLAGS as necessary."
-echo -n "Please enter CFLAGS [${CFLAGS_SAVE}]: "
-read CFLAGS
-if [ -z "$CFLAGS" ]; then
+if $batch; then
 	CFLAGS=${CFLAGS_SAVE}
+else
+	echo "Revise the CFLAGS as necessary."
+	CFLAGS=`read_path "Please enter CFLAGS" "${CFLAGS_SAVE}"`
 fi
 echo
 export CFLAGS
@@ -200,11 +220,7 @@ DEVTAB=`read_yesno "Enable new inode number scheme?" n $devtab`
 if [ "$DEVTAB" = Y ]; then
 	echo 
 	echo "The NFS server will need a file in which to store the device number mapping."
-	echo -n "Please enter file name [${PATH_PREFIX}/state/devtab]: "
-	read PATH_DEVTAB
-	if [ -z "$PATH_DEVTAB" ]; then
-		PATH_DEVTAB=${PATH_PREFIX}/state/devtab
-	fi
+	PATH_DEVTAB=`read_path "Device mapping file" "${PATH_PREFIX}/state/devtab" "$path_devtab"`
 	echo
 fi
 
@@ -256,11 +272,7 @@ fi
 USE_NIS=`read_yesno "Are you going to use NIS uid mapping?" n $nis`
 
 echo
-echo -n "Select path for exports file [${PATH_PREFIX}/etc/exports] ";
-read PATH_EXPORTS
-if [ -z "$PATH_EXPORTS" ]; then
-	PATH_EXPORTS=${PATH_PREFIX}/etc/exports
-fi
+PATH_EXPORTS=`read_path "Exports file" "${PATH_PREFIX}/etc/exports" "$path_exports"`
 
 cat << EOF
 

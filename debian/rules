@@ -18,7 +18,12 @@ build:
 	if [ ! -f configure ]; then autoconf; fi
 	if [ ! -f Makefile ]; then \
 		CFLAGS="-g -O2 -DTIME_WITH_SYS_TIME" \
-			./BUILD --libwrap-directory=/usr/lib/x86_64-linux-gnu < debian/build.cfg; \
+			./BUILD --batch --path-prefix=/usr \
+			--path-exports=/etc/exports --devtab=no --multi=yes \
+			--ugidd=yes --nis=no --exports-uid=0 --exports-gid=0 \
+			--hosts-access=yes \
+			--libwrap-directory=/usr/lib/x86_64-linux-gnu \
+			--log-mounts=yes; \
 	fi
 	$(MAKE) LDFLAGS=
 
@@ -41,6 +46,8 @@ install: build
 	dh_installdirs
 
 	$(MAKE) install_prefix=`pwd`/debian/tmp install
+	# postinst creates /etc/exports; don't ship the sample.
+	rm -f debian/tmp/etc/exports
 	mv debian/tmp/usr/man debian/tmp/usr/share
 	rm debian/tmp/usr/sbin/showmount
 	rm debian/tmp/usr/share/man/man8/showmount.8
