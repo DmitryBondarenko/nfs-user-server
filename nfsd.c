@@ -190,10 +190,18 @@ build_path(struct svc_req *rqstp, char *buf, diropargs *dopa, int flags)
 	fhcache		*fhc;
 	nfsstat		status;
 	char		*path = buf, *sp;
+	struct stat	sbuf;
 
 	/* Authenticate directory file handle */
 	if ((fhc = auth_fh(rqstp, &dopa->dir, &status, flags)) == NULL)
 		return status;
+
+	/* As in fh_compose(): a symlink handle used as the directory
+	 * would be followed by the kernel and lead out of the export. */
+	if (efs_lstat(fhc->path, &sbuf) < 0)
+		return nfs_errno();
+	if (!S_ISDIR(sbuf.st_mode))
+		return NFSERR_NOTDIR;
 
 	/* Get the directory path and append "/" + dopa->filename */
 	if (strlen(fhc->path) + strlen(dopa->name) + 1 >= NFS_MAXPATHLEN)

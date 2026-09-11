@@ -1253,6 +1253,17 @@ fh_compose(diropargs *dopa, nfs_fh *new_fh, struct stat *sbp,
 		return NFSERR_STALE;
 
 	/*
+	 * The directory handle must name a real directory. If it names a
+	 * symlink, the kernel follows it when we append the name below,
+	 * and the result can lie outside the export while still passing
+	 * auth_path(), which only compares path strings.
+	 */
+	if (efs_lstat(dirh->path, &sbuf) < 0)
+		return nfs_errno();
+	if (!S_ISDIR(sbuf.st_mode))
+		return NFSERR_NOTDIR;
+
+	/*
 	 * If we operate on the public file handle, check whether we
 	 * have a multiple component lookup.
 	 */

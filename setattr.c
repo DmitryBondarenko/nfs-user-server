@@ -95,7 +95,10 @@ nfsstat setattr(char *path, sattr *attr, struct stat *s,
 				tvp[1].tv_sec  = s->st_mtime;
 				tvp[1].tv_usec = 0;
 			}
-			if (efs_utimes(path, tvp) < 0 
+			/* utimes() follows symlinks, possibly out of
+			 * the export; set a symlink's own times. */
+			if ((S_ISLNK(s->st_mode) ? lutimes(path, tvp)
+						 : efs_utimes(path, tvp)) < 0
 				&& (errno != ENOENT || lstat(path, &sbuf)))
 				goto failure;
 		}
@@ -105,6 +108,7 @@ nfsstat setattr(char *path, sattr *attr, struct stat *s,
 		unsigned int	mode = attr->mode;
 
 		if (mode != -1 && mode != 0xFFFF /* ultrix bug */
+		 && !S_ISLNK(s->st_mode)	/* chmod() would follow it */
 		 && (mode & 07777) != (s->st_mode & 07777)) {
 			if (efs_chmod(path, mode) < 0
 				&& (errno != ENOENT || lstat(path, &sbuf)))
