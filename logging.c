@@ -178,9 +178,13 @@ log_call(struct svc_req *rqstp, char *xname, char *arg)
 	if (rqstp->rq_cred.oa_flavor == AUTH_UNIX) {
 		struct authunix_parms *unix_cred;
 		struct tm *tm;
+		time_t	stamp;
 
 		unix_cred = (struct authunix_parms *) rqstp->rq_clntcred;
-		tm = localtime( (const time_t *) &unix_cred->aup_time);
+		/* aup_time is a u_long, which is narrower than time_t on
+		 * 32-bit systems with 64-bit time_t; copy, don't cast. */
+		stamp = unix_cred->aup_time;
+		tm = localtime(&stamp);
 		snprintf(buffer + len, total - len,
 			"%d/%d/%d %02d:%02d:%02d %s %d.%d",
 			tm->tm_year+1900 , tm->tm_mon + 1, tm->tm_mday,
