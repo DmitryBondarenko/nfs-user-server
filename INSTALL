@@ -1,4 +1,26 @@
 
+NOTE (modern Linux / Ubuntu 24.04+):
+This package predates the migration from glibc's legacy Sun RPC to
+libtirpc, and predates TCP Wrappers being dropped from most distros'
+default install. Before running BUILD, install the following:
+
+    sudo apt update
+    sudo apt install build-essential libtirpc-dev libwrap0-dev rpcbind
+
+- libtirpc-dev provides <rpc/rpc.h> and friends (glibc no longer ships
+  these itself).
+- libwrap0-dev provides libwrap.a, needed if you answer "y" to the
+  host_access/TCP-wrappers question in BUILD. If you don't need
+  ugidd's TCP-wrappers-based access control, you can answer "n" to
+  that prompt instead and skip installing libwrap0-dev.
+- rpcbind (formerly portmap) must be installed and running for
+  clients to be able to find rpc.mountd/rpc.nfsd at all.
+
+See PATCHES.md for the source-level fixes this fork applies on top of
+the original 1998-era code to make it build and run correctly against
+libtirpc and modern kernels.
+
+
 Installation Instructions for the Universal NFS Server 2.2.
 -----------------------------------------------------------
 

@@ -1,3 +1,5 @@
+NOTE: This fork includes fixes for building and running on modern Linux (Ubuntu 24.04+, libtirpc). See PATCHES.md for details.
+
 
 
 
