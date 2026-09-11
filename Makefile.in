@@ -69,7 +69,6 @@ exec_prefix = $(prefix)
 
 bindir	= $(exec_prefix)/sbin
 #vardir = $(install_prefix)/var/lib/nfs
-etcdir = $(prefix)/etc
 infodir = $(prefix)/info
 infodir = $(prefix)/info
 man5dir = $(prefix)/man/man5
@@ -107,7 +106,6 @@ GENFILES	= mount.h mount_xdr.c mount_svc.c nfs_prot.h nfs_prot_xdr.c \
 HDRS		= system.h nfsd.h auth.h fh.h logging.h fakefsuid.h \
 		  rpcmisc.h rquotad.h rquota.h haccess.h
 LIBHDRS		= fsusage.h getopt.h mountlist.h failsafe.h signals.h
-ETCFILES	= exports
 MANPAGES5	= exports
 MANPAGES8p	= mountd nfsd $(UGIDD_MAN)
 MANPAGES8	= showmount
@@ -149,11 +147,14 @@ install: $(DAEMONS) $(CLIENTS) installdirs
 	    echo "installing $$prog in $(bindir)";	\
 	    $(INSTALL_PROGRAM) $$prog $(bindir)/$$prog;	\
 	done
-	@for etcfile in $(ETCFILES); do			\
-	    echo "installing $$etcfile in $(etcdir)";	\
-	    $(INSTALL_DATA) $(srcdir)/$$etcfile	\
-	        $(etcdir); \
-	done
+	@if [ -z "$(EXPORTS_FILE)" ]; then :; \
+	elif [ -f "$(install_prefix)$(EXPORTS_FILE)" ]; then \
+	    echo "keeping existing $(install_prefix)$(EXPORTS_FILE)"; \
+	else \
+	    echo "installing sample exports as $(install_prefix)$(EXPORTS_FILE)"; \
+	    $(INSTALL) -m 755 -d `dirname $(install_prefix)$(EXPORTS_FILE)`; \
+	    $(INSTALL_DATA) $(srcdir)/exports $(install_prefix)$(EXPORTS_FILE); \
+	fi
 	@for manp in $(MANPAGES5); do			\
 	    echo "installing $$manp$(man5ext) in $(man5dir)";	\
 	    $(INSTALL_DATA) $(srcdir)/$$manp.man	\
@@ -181,7 +182,7 @@ install: $(DAEMONS) $(CLIENTS) installdirs
 	fi
 
 installdirs:
-	${srcdir}/mkinstalldirs $(bindir) $(etcdir) $(man5dir) $(man8dir)
+	${srcdir}/mkinstalldirs $(bindir) $(man5dir) $(man8dir)
 
 $(rpcprefix)mountd: $(MOUNTD_OBJS) libnfs.a
 	$(CC) $(LDFLAGS) -o $@ $(MOUNTD_OBJS) $(LIBS) \

@@ -515,6 +515,8 @@ if [ "$DEVTAB" = "Y" ]; then
 else
   echo "DEVTAB_FILE="
 fi
+echo "# Exports file; make install puts the sample there if it's missing"
+echo "EXPORTS_FILE=$PATH_EXPORTS"
 ) > site.mk
 
 cat << EOF

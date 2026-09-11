@@ -5,4 +5,7 @@
 #/home/joe       pc001(rw,all_squash,anonuid=150,anongid=100)
 #/pub            (ro,insecure,all_squash)
 #/pub/private    (noaccess)
-/data/retronas	 (rw,insecure,all_squash,anongid=1001,anonuid=1001)
+#
+# RetroNAS example. A client list with nothing before "(" means every
+# host that can reach this server, so name your retro machines:
+#/data/retronas	 retropc(rw,insecure,all_squash,anongid=1001,anonuid=1001)
