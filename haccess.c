@@ -10,6 +10,7 @@
 
 #ifdef HOSTS_ACCESS
 #include "system.h"
+#include <time.h>
 #include "haccess.h"
 #include <rpc/rpc.h>
 #include "logging.h"
