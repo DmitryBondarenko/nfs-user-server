@@ -45,7 +45,7 @@ bool_t
 rquota_getquota_1_svc(struct svc_req *rqstp, getquota_args *argp,
 					     getquota_rslt *resp)
 {
-	struct sockaddr_in *sin = svc_getcaller(rqstp->rq_xprt);
+	struct sockaddr_in *sin = svc_getcaller_in(rqstp->rq_xprt);
 	char		*special;
 	struct dqblk	qtinfo;
 	struct statfs	fsinfo;

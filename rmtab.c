@@ -152,7 +152,7 @@ rmtab_gethost(struct svc_req *rqstp)
 	struct hostent *hp;
         struct in_addr addr;
 
-	addr = svc_getcaller(rqstp->rq_xprt)->sin_addr;
+	addr = svc_getcaller_in(rqstp->rq_xprt)->sin_addr;
 	hp   = gethostbyaddr((char *) &addr, sizeof(addr), AF_INET);
 
 	if (hp)

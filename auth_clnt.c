@@ -52,7 +52,7 @@ nfs_client *
 auth_clnt(struct svc_req *rqstp)
 {
 	nfs_client	*cp = NULL;
-	struct in_addr addr = svc_getcaller(rqstp->rq_xprt)->sin_addr;
+	struct in_addr addr = svc_getcaller_in(rqstp->rq_xprt)->sin_addr;
 
 	/* Get the client and list of exports */
 	if ((cp = auth_clientbyaddr(addr)) != NULL)
@@ -83,7 +83,7 @@ auth_path(nfs_client *cp, struct svc_req *rqstp, char *path)
 
 	/* Check request originated on a privileged port. */
 	if (!allow_non_root && mp->o.secure_port
-	 && !SECURE_PORT(svc_getcaller(rqstp->rq_xprt)->sin_port)) {
+	 && !SECURE_PORT(svc_getcaller_in(rqstp->rq_xprt)->sin_port)) {
 		Dprintf(L_ERROR,
 		    "NFS request from %s originated on insecure port, %s\n",
 		    cp->clnt_name,

@@ -150,7 +150,7 @@ ugidprog_1(struct svc_req *rqstp, SVCXPRT *transp)
 	xdrproc_t	xdr_argument, xdr_result;
 	char		*(*local)();
 
-	if (!client_checkaccess("rpc.ugidd", svc_getcaller(transp), 1))
+	if (!client_checkaccess("rpc.ugidd", svc_getcaller_in(transp), 1))
 		return;
 
 	switch (rqstp->rq_proc) {
@@ -219,7 +219,7 @@ authenticate_1_svc(argp, rqstp)
 	short	lport;
 
 	bzero(&res, sizeof res);
-	destaddr = *svc_getcaller(rqstp->rq_xprt);
+	destaddr = *svc_getcaller_in(rqstp->rq_xprt);
 	destaddr.sin_port = htons(*argp);
 	if ((s = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
 		goto bad;

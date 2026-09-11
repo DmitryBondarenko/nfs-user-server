@@ -34,6 +34,12 @@
 #include <stdio.h>
 
 #include <rpc/rpc.h>
+
+/* libtirpc types svc_getcaller() as struct sockaddr_in6 *, but for an
+ * IPv4 caller the buffer holds a struct sockaddr_in (__xprt_set_raddr).
+ */
+#define svc_getcaller_in(x)	((struct sockaddr_in *) svc_getcaller(x))
+
 #ifndef HAVE_XDRPROC_T
 #ifdef __STDC__
 typedef bool_t	(*xdrproc_t)(XDR *, void *, ...);

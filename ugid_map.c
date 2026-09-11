@@ -531,7 +531,7 @@ ugid_get_client(SVCXPRT *xprt, unsigned int prog, unsigned int vers,
 	now = age = nfs_dispatch_time;
 
 	/* Check if the client is already cached */
-	addr = *svc_getcaller(xprt);
+	addr = *svc_getcaller_in(xprt);
 	empty = oldest = -1;
 	for (i = 0; i < MAXCACHE; i++) {
 		if (cache[i].addr.s_addr == addr.sin_addr.s_addr
