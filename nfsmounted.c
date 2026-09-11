@@ -53,11 +53,30 @@ extern int errno;
 
 #include <sys/sysmacros.h>
 
+#ifdef __linux__
+#include <sys/vfs.h>			/* for statfs() */
+#ifndef NFS_SUPER_MAGIC
+#define NFS_SUPER_MAGIC	0x6969
+#endif
+#endif
+
+/*
+ * Linux gives every filesystem without a block device a major-0 device
+ * number -- tmpfs, btrfs, ZFS, overlayfs and FUSE as well as NFS -- so
+ * major(st_dev) == 0 alone flagged all of those as NFS mounts. Use it
+ * only as a quick "not NFS" test and ask the kernel for the type.
+ */
 int
 nfsmounted(const char *path, struct stat *sbp)
 {
 #ifdef __linux__
-	return major(sbp->st_dev) == 0;
+	struct statfs	sfs;
+
+	if (major(sbp->st_dev) != 0)
+		return 0;
+	if (statfs(path, &sfs) < 0)
+		return 0;
+	return sfs.f_type == NFS_SUPER_MAGIC;
 #endif
 	return 0;
 }
