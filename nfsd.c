@@ -859,6 +859,101 @@ dpsize(struct dirent *dp)
 	return (sizeof(entry) + NLENGTH(dp) + DP_SLOP);
 }
 
+/*
+ * READDIR cookies
+ *
+ * NFSv2 cookies are 32 bits, but telldir() positions are longs, and on
+ * ext4 they are 64-bit hash values that don't survive being cut to 32
+ * bits. So each nfsd process keeps, per directory, a table of the
+ * telldir() positions it has handed out, and a cookie names an entry in
+ * that table; the next READDIR resumes with seekdir() at a real
+ * position. Unlike a "skip N entries" cookie, that doesn't shift when
+ * entries are added or removed between calls.
+ *
+ * Cookie layout: bit 31 set, bits 20-30 a tag for the table (process
+ * and generation), bits 0-19 the table index + 1. A cookie we don't
+ * know -- another nfsd process, a restart, an evicted or reset table --
+ * is taken as a count of entries to skip, which is right as long as the
+ * directory hasn't changed.
+ */
+#define RDC_DIRS	16		/* directories remembered */
+#define RDC_WINDOW	64		/* look-ahead for a known position */
+#define RDC_FLAG	0x80000000U
+#define RDC_TAGSHIFT	20
+#define RDC_TAGMASK	0x7ffU
+#define RDC_IDXMASK	0xfffffU	/* also the table size limit */
+
+static struct rdc {
+	dev_t		dev;
+	ino_t		ino;
+	unsigned int	tag;
+	unsigned int	n, size;
+	long		*pos;
+	unsigned long	used;		/* LRU clock; 0 = free slot */
+} rdc_table[RDC_DIRS];
+static unsigned long	rdc_clock;
+static unsigned int	rdc_gen;
+
+static void
+rdc_reset(struct rdc *t, dev_t dev, ino_t ino)
+{
+	free(t->pos);
+	t->pos = NULL;
+	t->n = t->size = 0;
+	t->dev = dev;
+	t->ino = ino;
+	t->tag = ((unsigned int) getpid() ^ (rdc_gen++ * 97)) & RDC_TAGMASK;
+	t->used = ++rdc_clock;
+}
+
+/* Find the table for a directory, reusing the least recently used. */
+static struct rdc *
+rdc_find(struct stat *sbp)
+{
+	struct rdc	*t, *lru = rdc_table;
+
+	for (t = rdc_table; t < rdc_table + RDC_DIRS; t++) {
+		if (t->used && t->dev == sbp->st_dev
+		 && t->ino == sbp->st_ino) {
+			t->used = ++rdc_clock;
+			return t;
+		}
+		if (t->used < lru->used)
+			lru = t;
+	}
+	rdc_reset(lru, sbp->st_dev, sbp->st_ino);
+	return lru;
+}
+
+/*
+ * Cookie for telldir() position pos. *hint is the index where we expect
+ * pos (the one after the previous entry's), so listing an unchanged
+ * directory again reuses its entries instead of growing the table.
+ */
+static __u32
+rdc_cookie(struct rdc *t, long pos, unsigned int *hint)
+{
+	unsigned int	i, end;
+
+	end = *hint + RDC_WINDOW;
+	if (end > t->n)
+		end = t->n;
+	for (i = *hint; i < end; i++)
+		if (t->pos[i] == pos)
+			goto found;
+	if (t->n == RDC_IDXMASK)
+		rdc_reset(t, t->dev, t->ino);
+	if (t->n == t->size) {
+		t->size = t->size ? 2 * t->size : 256;
+		t->pos = xrealloc(t->pos, t->size * sizeof(long));
+	}
+	i = t->n++;
+	t->pos[i] = pos;
+found:
+	*hint = i + 1;
+	return RDC_FLAG | (t->tag << RDC_TAGSHIFT) | (i + 1);
+}
+
 int
 nfsd_nfsproc_readdir_2(readdirargs *argp, struct svc_req *rqstp)
 {
@@ -868,7 +963,10 @@ nfsd_nfsproc_readdir_2(readdirargs *argp, struct svc_req *rqstp)
 	DIR		*dirp;
 	struct dirent	*dp;
 	struct stat	sbuf;
-	int		res_size, dotsonly, hidedot, first, d_idx;
+	int		res_size, dotsonly, hidedot, first;
+	__u32		cookie;
+	unsigned int	hint, skip;
+	struct rdc	*rdc;
 	fhcache		*h;
 	nfsstat		status;
 	ino_t		dotinum = 0;
@@ -904,38 +1002,27 @@ nfsd_nfsproc_readdir_2(readdirargs *argp, struct svc_req *rqstp)
 	if ((dirp = efs_opendir(h->path)) == NULL)
 		return ((errno ? nfs_errno() : NFSERR_NAMETOOLONG));
 
-	/* soooo. Good news and bad news about telldir/seekdir.
-	   The good news? They're probably more secure than they used to be when
-	   usermode NFS was a thing. The bad news? 
-	       Up to glibc 2.1.1, the return type of telldir() was off_t.  POSIX.1-2001
-	       specifies long, and this is the type used since glibc 2.1.2.
-           And for our purposes long is 8 bytes.  Meanwhile, NFSv2 sez
-		const COOKIESIZE = 4;
-
-           The strategy below is probably stupid. But it works (I think). And I am
-           a bear of very little brain. */
-		
+	/* Resume where the cookie says (see "READDIR cookies" above). */
 	memcpy(&dloc, argp->cookie, sizeof(dloc));
-        d_idx = ntohl(dloc);
-        if ( d_idx < 0 ) {
-		efs_closedir(dirp);
-		return (NFSERR_STALE);
-        } else if (d_idx > 0) {
-		int	itr;
-
-		for (itr=1; itr <= d_idx; itr++) {
-			if ((dp = efs_readdir(dirp)) == NULL) {
-				efs_closedir(dirp);
-				return (NFSERR_STALE);
-			}
-		}
-        }
+	cookie = ntohl(dloc);
+	rdc = rdc_find(&sbuf);
+	hint = cookie & RDC_IDXMASK;
+	if ((cookie & RDC_FLAG)
+	 && ((cookie >> RDC_TAGSHIFT) & RDC_TAGMASK) == rdc->tag
+	 && hint >= 1 && hint <= rdc->n) {
+		efs_seekdir(dirp, rdc->pos[hint - 1]);
+	} else {
+		/* Not ours: treat it as a count of entries to skip. */
+		skip = (cookie & RDC_FLAG) ? hint : cookie;
+		hint = 0;
+		while (skip > 0 && efs_readdir(dirp) != NULL)
+			skip--;
+	}
 
 	res_size = 0;
 	first = 1;
 	ep = &(result.readdirres.readdirres_u.reply.entries);
 	while ((dp = efs_readdir(dirp)) != NULL) {
-		d_idx++;
 		res_size += dpsize(dp);
 		if (res_size >= argp->count && !first)
 			break;
@@ -955,7 +1042,7 @@ nfsd_nfsproc_readdir_2(readdirargs *argp, struct svc_req *rqstp)
 		e->fileid = pseudo_inode(dp->d_ino, sbuf.st_dev);
 		e->name = xmalloc(NLENGTH(dp) + 1);
 		strcpy(e->name, dp->d_name);
-		dloc = htonl(d_idx);
+		dloc = htonl(rdc_cookie(rdc, efs_telldir(dirp), &hint));
 		memcpy(&e->cookie, &dloc, sizeof(nfscookie));
 		ep = &e->nextentry;
 		first = 0;
