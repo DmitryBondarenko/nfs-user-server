@@ -192,7 +192,7 @@ echo
 
 CFLAGS_SAVE="${CFLAGS}"
 if [ -z "$CFLAGS_SAVE" ]; then
-	CFLAGS_SAVE='-I/usr/include/tirpc'
+	CFLAGS_SAVE='-g -O2'
 fi
 echo 
 if $batch; then
@@ -202,7 +202,22 @@ else
 	CFLAGS=`read_path "Please enter CFLAGS" "${CFLAGS_SAVE}"`
 fi
 echo
-export CFLAGS
+# GCC 14+ rejects the old-style C in configure's own test programs,
+# which makes configure think it is cross-compiling, and the sources
+# need C89 as well. glibc no longer ships Sun RPC; use libtirpc's.
+case " $CFLAGS " in
+*" -std="*) ;;
+*) CFLAGS="$CFLAGS -std=gnu89" ;;
+esac
+case " $CFLAGS " in
+*"/usr/include/tirpc"*) ;;
+*) CFLAGS="$CFLAGS -I/usr/include/tirpc" ;;
+esac
+case " $CPPFLAGS " in
+*"/usr/include/tirpc"*) ;;
+*) CPPFLAGS="$CPPFLAGS -I/usr/include/tirpc" ;;
+esac
+export CFLAGS CPPFLAGS
 
 cat << EOF
 +------------------+
