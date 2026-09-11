@@ -62,7 +62,9 @@ WARNFLAGS = @WARNFLAGS@
 RPC_WARNFLAGS = @RPC_WARNFLAGS@
 TRANSPORTFLAGS = @RPCGEN_I@ -s udp -s tcp
 
-prefix	= @prefix@
+# install_prefix is a staging root for packaging (debian/rules sets it);
+# the configured prefix is still what the programs are built for.
+prefix	= $(install_prefix)@prefix@
 exec_prefix = $(prefix)
 
 bindir	= $(exec_prefix)/sbin
@@ -172,10 +174,10 @@ install: $(DAEMONS) $(CLIENTS) installdirs
 	    $(INSTALL_DATA) $(srcdir)/$$manp.man	\
 	        $(man8dir)/$$manp$(man8ext); 		\
 	done
-	@if [ -n "$(DEVTAB_FILE)" -a ! -f "$(DEVTAB_FILE)" ]; then \
-	    echo "Initializing $(DEVTAB_FILE)"; \
-	    $(INSTALL) -m 755 -d `dirname $(DEVTAB_FILE)`; \
-	    echo "# Device mapping for unfsd" > "$(DEVTAB_FILE)"; \
+	@if [ -n "$(DEVTAB_FILE)" -a ! -f "$(install_prefix)$(DEVTAB_FILE)" ]; then \
+	    echo "Initializing $(install_prefix)$(DEVTAB_FILE)"; \
+	    $(INSTALL) -m 755 -d `dirname $(install_prefix)$(DEVTAB_FILE)`; \
+	    echo "# Device mapping for unfsd" > "$(install_prefix)$(DEVTAB_FILE)"; \
 	fi
 
 installdirs:
